@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,101 +24,27 @@ interface Student {
 
 export default function StudentManagement() {
   const { toast } = useToast()
-  const [students, setStudents] = useState<Student[]>([
-    {
-      id: "1",
-      name: "Lobar",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-    {
-      id: "2",
-      name: "Doniyor",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-    {
-      id: "3",
-      name: "Madina",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-    {
-      id: "4",
-      name: "Dilorom",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-    {
-      id: "5",
-      name: "Z. Shahzoda",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-    {
-      id: "6",
-      name: "Dilnoza",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-    {
-      id: "7",
-      name: "Ozoda",
-      doska: false,
-      essential: false,
-      speaking: false,
-      listening: false,
-      mindset: false,
-      murphy: false,
-      additionalTask: "",
-      destination: "",
-      done: false,
-    },
-  ])
+  const [students, setStudents] = useState<Student[]>([])
 
   const [newStudentName, setNewStudentName] = useState("")
+
+  useEffect(() => {
+    const savedStudents = localStorage.getItem("students")
+    if (savedStudents) {
+      try {
+        setStudents(JSON.parse(savedStudents))
+      } catch (error) {
+        console.error("Error loading students from localStorage:", error)
+      }
+    }
+  }, [])
+  useEffect(() => {
+    if (students.length > 0) {
+      localStorage.setItem("students", JSON.stringify(students))
+    } else {
+      localStorage.removeItem("students") // hammasi o‘chirilsa localStorage tozalansin
+    }
+  }, [students])
 
   const addStudent = () => {
     if (newStudentName.trim()) {
@@ -190,7 +116,7 @@ export default function StudentManagement() {
         <html>
         <head>
           <meta charset="utf-8">
-          <title>Foundation - O'quvchilar hisoboti</title>
+          <title> O'quvchilar hisoboti</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             h1 { text-align: center; margin-bottom: 30px; }
@@ -219,7 +145,7 @@ export default function StudentManagement() {
           </style>
         </head>
         <body>
-          <h1>Foundation</h1>
+          <h1></h1>
           <table>
             <thead>
               <tr>
@@ -269,7 +195,7 @@ export default function StudentManagement() {
       const link = document.createElement("a")
       const url = URL.createObjectURL(blob)
       link.setAttribute("href", url)
-      link.setAttribute("download", `foundation-students-${new Date().toISOString().split("T")[0]}.doc`)
+      link.setAttribute("download", `-students-${new Date().toISOString().split("T")[0]}.doc`)
       link.style.visibility = "hidden"
       document.body.appendChild(link)
       link.click()
@@ -289,7 +215,7 @@ export default function StudentManagement() {
   }
 
   const formatDataForTelegram = () => {
-    let message = "📚 Foundation - O'quvchilar hisoboti\n\n"
+    let message = "📚  O'quvchilar hisoboti\n\n"
 
     students.forEach((student, index) => {
       message += `${index + 1}. ${student.name}\n`
@@ -316,7 +242,7 @@ export default function StudentManagement() {
     <div className="container mx-auto p-6 max-w-7xl">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Foundation - O'quvchilar boshqaruvi</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center"> O'quvchilar boshqaruvi</CardTitle>
         </CardHeader>
         <CardContent>
           {/* Add new student */}
@@ -334,150 +260,157 @@ export default function StudentManagement() {
             </Button>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-300 p-3 text-left font-semibold">Name</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Doska</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Essential</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Speaking</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Listening</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Mindset</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Murphy</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">
-                    Additional task
-                    <br />
-                    (essay, analysis)
-                  </th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Destination</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold bg-green-100">Done</th>
-                  <th className="border border-gray-300 p-3 text-center font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 p-3">
-                      <Input
-                        value={student.name}
-                        onChange={(e) => updateStudent(student.id, "name", e.target.value)}
-                        className="border-0 p-0 focus:ring-0"
-                      />
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <button
-                        onClick={() => toggleField(student.id, "doska")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.doska ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <button
-                        onClick={() => toggleField(student.id, "essential")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.essential ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <button
-                        onClick={() => toggleField(student.id, "speaking")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.speaking ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <button
-                        onClick={() => toggleField(student.id, "listening")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.listening ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <button
-                        onClick={() => toggleField(student.id, "mindset")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.mindset ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <button
-                        onClick={() => toggleField(student.id, "murphy")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.murphy ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3">
-                      <Textarea
-                        value={student.additionalTask}
-                        onChange={(e) => updateStudent(student.id, "additionalTask", e.target.value)}
-                        placeholder="Essay, analysis..."
-                        className="min-h-[60px] resize-none"
-                      />
-                    </td>
-                    <td className="border border-gray-300 p-3">
-                      <Input
-                        value={student.destination}
-                        onChange={(e) => updateStudent(student.id, "destination", e.target.value)}
-                        className="border-0 p-0 focus:ring-0"
-                      />
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center bg-green-50">
-                      <button
-                        onClick={() => toggleField(student.id, "done")}
-                        className="text-2xl hover:scale-110 transition-transform"
-                      >
-                        {student.done ? "✅" : "❌"}
-                      </button>
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeStudent(student.id)}
-                        className="flex items-center gap-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
+          {students.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg mb-2">Hozircha o'quvchilar yo'q</p>
+              <p className="text-sm">Yuqoridagi maydondan yangi o'quvchi qo'shing</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border border-gray-300 p-3 text-left font-semibold">Name</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Doska</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Essential</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Speaking</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Listening</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Mindset</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Murphy</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">
+                      Additional task
+                      <br />
+                      (essay, analysis)
+                    </th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Destination</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold bg-green-100">Done</th>
+                    <th className="border border-gray-300 p-3 text-center font-semibold">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {students.map((student) => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 p-3">
+                        <Input
+                          value={student.name}
+                          onChange={(e) => updateStudent(student.id, "name", e.target.value)}
+                          className="border-0 p-0 focus:ring-0"
+                        />
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <button
+                          onClick={() => toggleField(student.id, "doska")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.doska ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <button
+                          onClick={() => toggleField(student.id, "essential")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.essential ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <button
+                          onClick={() => toggleField(student.id, "speaking")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.speaking ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <button
+                          onClick={() => toggleField(student.id, "listening")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.listening ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <button
+                          onClick={() => toggleField(student.id, "mindset")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.mindset ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <button
+                          onClick={() => toggleField(student.id, "murphy")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.murphy ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3">
+                        <Textarea
+                          value={student.additionalTask}
+                          onChange={(e) => updateStudent(student.id, "additionalTask", e.target.value)}
+                          placeholder="Essay, analysis..."
+                          className="min-h-[60px] resize-none"
+                        />
+                      </td>
+                      <td className="border border-gray-300 p-3">
+                        <Input
+                          value={student.destination}
+                          onChange={(e) => updateStudent(student.id, "destination", e.target.value)}
+                          className="border-0 p-0 focus:ring-0"
+                        />
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center bg-green-50">
+                        <button
+                          onClick={() => toggleField(student.id, "done")}
+                          className="text-2xl hover:scale-110 transition-transform"
+                        >
+                          {student.done ? "✅" : "❌"}
+                        </button>
+                      </td>
+                      <td className="border border-gray-300 p-3 text-center">
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeStudent(student.id)}
+                          className="flex items-center gap-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-          {/* Buttons section */}
-          <div className="mt-6 flex justify-center gap-4">
-            <Button
-              onClick={exportToWord}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-            >
-              <Download className="w-5 h-5" />
-              Word ga yuklash
-            </Button>
-            <Button
-              onClick={sendToTelegram}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
-            >
-              <Send className="w-5 h-5" />
-              @online_xakker ga yuborish
-            </Button>
-          </div>
+          {students.length > 0 && (
+            <div className="mt-6 flex justify-center gap-4">
+              <Button
+                onClick={exportToWord}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
+              >
+                <Download className="w-5 h-5" />
+                Word ga yuklash
+              </Button>
+              <Button
+                onClick={sendToTelegram}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+              >
+                <Send className="w-5 h-5" />
+                Telegramga yuborish
+              </Button>
+            </div>
+          )}
 
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          {/* <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h3 className="font-semibold text-blue-800 mb-2">Qanday ishlaydi:</h3>
             <p className="text-blue-700 text-sm">
               "Send" tugmasini bosganda Telegram ochiladi va @online_xakker bilan chat oynasi ochiladi. Xabar oldindan
               tayyor bo'ladi, faqat "Send" tugmasini bosishingiz kerak.
             </p>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
