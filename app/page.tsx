@@ -38,6 +38,7 @@ export default function StudentManagement() {
       }
     }
   }, [])
+
   useEffect(() => {
     if (students.length > 0) {
       localStorage.setItem("students", JSON.stringify(students))
@@ -92,7 +93,7 @@ export default function StudentManagement() {
       const encodedMessage = encodeURIComponent(message)
 
       // Open Telegram with pre-filled message to @online_xakker
-      const telegramUrl = `https://t.me/online_xakker?text=${encodedMessage}`
+      const telegramUrl = `https://t.me/Pluto_18?text=${encodedMessage}`
       window.open(telegramUrl, "_blank")
 
       toast({
