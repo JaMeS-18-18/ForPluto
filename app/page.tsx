@@ -52,23 +52,7 @@ function createEmptyStudent(): Student {
 
 export default function StudentManagement() {
   const { toast } = useToast();
-  const [groups, setGroups] = useState<Group[]>(() => {
-    const saved = localStorage.getItem("groups");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Har bir group uchun fields va labels bo'lmasa, default qiymat beriladi
-        return parsed.map((group: any) => ({
-          ...group,
-          fields: group.fields ?? [...defaultFields],
-          labels: group.labels ?? { ...defaultLabels },
-        }));
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
 
   const defaultLabels = {
@@ -96,17 +80,7 @@ export default function StudentManagement() {
     "destination",
     "done",
   ]
-  const [fields, setFields] = useState<string[]>(() => {
-    const saved = localStorage.getItem("fields")
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {
-        return defaultFields
-      }
-    }
-    return defaultFields
-  })
+  const [fields, setFields] = useState<string[]>(defaultFields)
   // Add column
   const addColumn = (groupId: number) => {
     const newField = prompt("Yangi ustun nomi (faqat lotin harflari, masalan: homework)")?.trim();
@@ -147,26 +121,36 @@ export default function StudentManagement() {
     }));
     toast({ title: "Ustun o'chirildi", description: `${field} ustuni o'chirildi` });
   }
-  const [labels, setLabels] = useState(() => {
-    const saved = localStorage.getItem("labels")
-    if (saved) {
-      try {
-        return { ...defaultLabels, ...JSON.parse(saved) }
-      } catch {
-        return defaultLabels
-      }
-    }
-    return defaultLabels
-  })
+  const [labels, setLabels] = useState(defaultLabels)
 
 
   const [newGroupName, setNewGroupName] = useState("");
   const [newStudentName, setNewStudentName] = useState("");
 
 
+  // localStorage dan ma'lumotlarni yuklash (faqat client-side)
+  useEffect(() => {
+    const savedGroups = localStorage.getItem("groups");
+    if (savedGroups) {
+      try {
+        const parsed = JSON.parse(savedGroups);
+        const groupsWithDefaults = parsed.map((group: any) => ({
+          ...group,
+          fields: group.fields ?? [...defaultFields],
+          labels: group.labels ?? { ...defaultLabels },
+        }));
+        setGroups(groupsWithDefaults);
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }, []);
+
   // Guruhlar o'zgarishini localStorage ga saqlash
   useEffect(() => {
-    localStorage.setItem("groups", JSON.stringify(groups));
+    if (typeof window !== "undefined" && groups.length >= 0) {
+      localStorage.setItem("groups", JSON.stringify(groups));
+    }
   }, [groups]);
 
 
