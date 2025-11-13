@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, Send, Trash2, Download } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { GroupCard } from "@/components/GroupCard"
 
 interface Student {
   id: string
@@ -17,403 +18,582 @@ interface Student {
   listening: boolean
   mindset: boolean
   murphy: boolean
-  additionalTask: string
+  additionalTask: string[]
   destination: string
   done: boolean
+  [key: string]: any; // allow dynamic fields
 }
 
+
+interface Group {
+  id: number;
+  groupName: string;
+  students: Student[];
+  fields: string[];
+  labels: { [key: string]: string };
+}
+
+function createEmptyStudent(): Student {
+  return {
+    id: Date.now().toString() + Math.random().toString(16).slice(2),
+    name: "",
+    doska: false,
+    essential: false,
+    speaking: false,
+    listening: false,
+    mindset: false,
+    murphy: false,
+    additionalTask: [],
+    destination: "",
+    done: false,
+  };
+}
+
+
 export default function StudentManagement() {
-  const { toast } = useToast()
-  const [students, setStudents] = useState<Student[]>([])
-
-  const [newStudentName, setNewStudentName] = useState("")
-
-  useEffect(() => {
-    const savedStudents = localStorage.getItem("students")
-    if (savedStudents) {
+  const { toast } = useToast();
+  const [groups, setGroups] = useState<Group[]>(() => {
+    const saved = localStorage.getItem("groups");
+    if (saved) {
       try {
-        setStudents(JSON.parse(savedStudents))
-      } catch (error) {
-        console.error("Error loading students from localStorage:", error)
+        const parsed = JSON.parse(saved);
+        // Har bir group uchun fields va labels bo'lmasa, default qiymat beriladi
+        return parsed.map((group: any) => ({
+          ...group,
+          fields: group.fields ?? [...defaultFields],
+          labels: group.labels ?? { ...defaultLabels },
+        }));
+      } catch {
+        return [];
       }
     }
-  }, [])
+    return [];
+  });
+  const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (students.length > 0) {
-      localStorage.setItem("students", JSON.stringify(students))
-    } else {
-      localStorage.removeItem("students") // hammasi o‘chirilsa localStorage tozalansin
-    }
-  }, [students])
-
-  const addStudent = () => {
-    if (newStudentName.trim()) {
-      const newStudent: Student = {
-        id: Date.now().toString(),
-        name: newStudentName.trim(),
-        doska: false,
-        essential: false,
-        speaking: false,
-        listening: false,
-        mindset: false,
-        murphy: false,
-        additionalTask: "",
-        destination: "",
-        done: false,
-      }
-      setStudents([newStudent, ...students])
-      setNewStudentName("")
-      toast({
-        title: "O'quvchi qo'shildi",
-        description: `${newStudentName} ro'yxatga qo'shildi`,
-      })
-    }
+  const defaultLabels = {
+    name: "Name",
+    doska: "Doska",
+    essential: "Essential",
+    speaking: "Speaking",
+    listening: "Listening",
+    mindset: "Mindset",
+    murphy: "Murphy",
+    additionalTask: "Additional task (essay, analysis)",
+    destination: "Destination",
+    done: "Done",
+    actions: "Actions",
   }
+  const defaultFields = [
+    "name",
+    "doska",
+    "essential",
+    "speaking",
+    "listening",
+    "mindset",
+    "murphy",
+    "additionalTask",
+    "destination",
+    "done",
+  ]
+  const [fields, setFields] = useState<string[]>(() => {
+    const saved = localStorage.getItem("fields")
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch {
+        return defaultFields
+      }
+    }
+    return defaultFields
+  })
+  // Add column
+  const addColumn = (groupId: number) => {
+    const newField = prompt("Yangi ustun nomi (faqat lotin harflari, masalan: homework)")?.trim();
+    if (!newField) return;
+    setGroups((prev) => prev.map((group) => {
+      if (group.id !== groupId) return group;
+      if (group.fields.includes(newField) || newField === "name" || newField === "actions") return group;
+      const updatedFields = [...group.fields, newField];
+      const updatedLabels = { ...group.labels, [newField]: newField };
+      return {
+        ...group,
+        fields: updatedFields,
+        labels: updatedLabels,
+        students: group.students.map((s) => ({ ...s, [newField]: newField === "additionalTask" ? [] : "" }))
+      };
+    }));
+    toast({ title: "Ustun qo'shildi", description: `${newField} ustuni qo'shildi` });
+  }
+
+  // Remove column
+  const removeColumn = (groupId: number, field: string) => {
+    if (field === "name" || field === "actions") return;
+    setGroups((prev) => prev.map((group) => {
+      if (group.id !== groupId) return group;
+      const updatedFields = group.fields.filter((f) => f !== field);
+      const updatedLabels = { ...group.labels };
+      delete updatedLabels[field];
+      return {
+        ...group,
+        fields: updatedFields,
+        labels: updatedLabels,
+        students: group.students.map((s) => {
+          const copy = { ...s };
+          delete copy[field];
+          return copy;
+        })
+      };
+    }));
+    toast({ title: "Ustun o'chirildi", description: `${field} ustuni o'chirildi` });
+  }
+  const [labels, setLabels] = useState(() => {
+    const saved = localStorage.getItem("labels")
+    if (saved) {
+      try {
+        return { ...defaultLabels, ...JSON.parse(saved) }
+      } catch {
+        return defaultLabels
+      }
+    }
+    return defaultLabels
+  })
+
+
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newStudentName, setNewStudentName] = useState("");
+
+
+  // Guruhlar o'zgarishini localStorage ga saqlash
+  useEffect(() => {
+    localStorage.setItem("groups", JSON.stringify(groups));
+  }, [groups]);
+
+
+  // Guruh qo'shish
+  const addGroup = () => {
+    if (newGroupName.trim()) {
+      const newGroup: Group = {
+        id: Date.now(),
+        groupName: newGroupName.trim(),
+        students: [],
+        fields: [...defaultFields],
+        labels: { ...defaultLabels },
+      };
+      setGroups((prev) => [newGroup, ...prev]);
+      setNewGroupName("");
+      toast({ title: "Guruh qo'shildi", description: `${newGroupName} guruh qo'shildi` });
+    }
+  };
+
+  // O'quvchi qo'shish (faqat tanlangan guruhda)
+  const addStudent = () => {
+    if (newStudentName.trim() && selectedGroup !== null) {
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.id === selectedGroup
+            ? { ...g, students: [{ ...createEmptyStudent(), name: newStudentName.trim() }, ...g.students] }
+            : g
+        )
+      );
+      setNewStudentName("");
+      toast({ title: "O'quvchi qo'shildi", description: `${newStudentName} ro'yxatga qo'shildi` });
+    }
+  };
+
+
+  const addStudentBelow = (index: number) => {
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? {
+              ...g,
+              students: (() => {
+                const arr = [...g.students];
+                arr.splice(index + 1, 0, createEmptyStudent());
+                return arr;
+              })(),
+            }
+          : g
+      )
+    );
+    toast({ title: "Qator qo'shildi", description: "Yangi o'quvchi qatori qo'shildi" });
+  };
+
+
+  const addNote = (id: string) => {
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? {
+              ...g,
+              students: g.students.map((s) =>
+                s.id === id ? { ...s, additionalTask: [...s.additionalTask, ""] } : s
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+
+  const updateNote = (id: string, index: number, value: string) => {
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? {
+              ...g,
+              students: g.students.map((s) =>
+                s.id === id
+                  ? {
+                      ...s,
+                      additionalTask: s.additionalTask.map((t, i) => (i === index ? value : t)),
+                    }
+                  : s
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+
+  const removeNote = (id: string, index: number) => {
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? {
+              ...g,
+              students: g.students.map((s) =>
+                s.id === id
+                  ? {
+                      ...s,
+                      additionalTask: s.additionalTask.filter((_, i) => i !== index),
+                    }
+                  : s
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+  const updateLabel = (groupId: number, key: string, value: string) => {
+    setGroups((prev) => prev.map((group) => {
+      if (group.id !== groupId) return group;
+      const updatedLabels = { ...group.labels, [key]: value };
+      return { ...group, labels: updatedLabels };
+    }));
+  }
+
 
   const removeStudent = (id: string) => {
-    setStudents(students.filter((student) => student.id !== id))
-    toast({
-      title: "O'quvchi o'chirildi",
-      description: "O'quvchi ro'yxatdan o'chirildi",
-    })
-  }
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? { ...g, students: g.students.filter((student) => student.id !== id) }
+          : g
+      )
+    );
+    toast({ title: "O'quvchi o'chirildi", description: "O'quvchi ro'yxatdan o'chirildi" });
+  };
+
 
   const updateStudent = (id: string, field: keyof Student, value: any) => {
-    setStudents(students.map((student) => (student.id === id ? { ...student, [field]: value } : student)))
-  }
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? {
+              ...g,
+              students: g.students.map((student) =>
+                student.id === id ? { ...student, [field]: value } : student
+              ),
+            }
+          : g
+      )
+    );
+  };
+
 
   const toggleField = (id: string, field: keyof Student) => {
-    setStudents(students.map((student) => (student.id === id ? { ...student, [field]: !student[field] } : student)))
-  }
+    if (selectedGroup === null) return;
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === selectedGroup
+          ? {
+              ...g,
+              students: g.students.map((student) =>
+                student.id === id ? { ...student, [field]: !student[field] } : student
+              ),
+            }
+          : g
+      )
+    );
+  };
 
+  // Faqat tanlangan guruh uchun Telegramga yuborish
   const sendToTelegram = () => {
+    if (selectedGroup === null) return;
+    const group = groups.find((g) => g.id === selectedGroup);
+    if (!group) return;
     try {
-      const message = formatDataForTelegram()
-      const encodedMessage = encodeURIComponent(message)
-
-      // Open Telegram with pre-filled message to @online_xakker
-      const telegramUrl = `https://t.me/Pluto_18?text=${encodedMessage}`
-      window.open(telegramUrl, "_blank")
-
+      const message = formatDataForTelegram(group);
+      const encodedMessage = encodeURIComponent(message);
+      const telegramUrl = `https://t.me/Pluto_18?text=${encodedMessage}`;
+      window.open(telegramUrl, "_blank");
       toast({
         title: "Telegram ochildi",
         description: "Xabar tayyor, faqat 'Send' tugmasini bosing",
-      })
+      });
     } catch (error) {
       toast({
         title: "Xatolik",
         description: "Telegram ochishda xatolik yuz berdi",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
-  const exportToWord = () => {
-    try {
-      // Create HTML content that matches the original table format
-      let htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title> O'quvchilar hisoboti</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1 { text-align: center; margin-bottom: 30px; }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin: 20px 0;
-            }
-            th, td { 
-              border: 1px solid #000; 
-              padding: 8px; 
-              text-align: center;
-              vertical-align: middle;
-            }
-            th { 
-              background-color: #f0f0f0; 
-              font-weight: bold;
-            }
-            .name-col { text-align: left; }
-            .done-col { background-color: #e8f5e8; }
-            .additional-task { 
-              text-align: left; 
-              max-width: 200px;
-              word-wrap: break-word;
-            }
-          </style>
-        </head>
-        <body>
-          <h1></h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Doska</th>
-                <th>essential</th>
-                <th>speaking</th>
-                <th>listening</th>
-                <th>mindset</th>
-                <th>murphy</th>
-                <th>Additional task(essay, analysis)</th>
-                <th>Destination</th>
-                <th class="done-col">Done</th>
-              </tr>
-            </thead>
-            <tbody>
-      `
 
-      students.forEach((student) => {
-        htmlContent += `
-          <tr>
-            <td class="name-col">${student.name}</td>
-            <td>${student.doska ? "✅" : "❌"}</td>
-            <td>${student.essential ? "✅" : "❌"}</td>
-            <td>${student.speaking ? "✅" : "❌"}</td>
-            <td>${student.listening ? "✅" : "❌"}</td>
-            <td>${student.mindset ? "✅" : "❌"}</td>
-            <td>${student.murphy ? "✅" : "❌"}</td>
-            <td class="additional-task">${student.additionalTask || ""}</td>
-            <td>${student.destination || ""}</td>
-            <td class="done-col">${student.done ? "✅" : "❌"}</td>
-          </tr>
-        `
-      })
+  // Faqat tanlangan guruh o'quvchilari uchun hisobot
+  const formatDataForTelegram = (group: Group) => {
+    let message = "📚  O'quvchilar hisoboti\n\n";
+    group.students.forEach((student, index) => {
+      message += `${index + 1}. ${student.name}\n`;
+      group.fields.forEach((field) => {
+        if (field === "name") return;
+        if (field === "additionalTask" && Array.isArray(student.additionalTask) && student.additionalTask.length) {
+          message += `${group.labels[field] || field}:\n`;
+          student.additionalTask.forEach((n, i) => {
+            message += `  ${i + 1}. ${n}\n`;
+          });
+        } else if (typeof student[field] === "boolean") {
+          message += `${group.labels[field] || field}: ${student[field] ? "✅" : "❌"}\n`;
+        } else if (student[field]) {
+          message += `${group.labels[field] || field}: ${student[field]}\n`;
+        }
+      });
+      message += "\n";
+    });
+    return message;
+  };
 
-      htmlContent += `
-            </tbody>
-          </table>
-        </body>
-        </html>
-      `
 
-      // Create and download Word file (HTML format that Word can open)
-      const blob = new Blob([htmlContent], {
-        type: "application/msword;charset=utf-8",
-      })
-      const link = document.createElement("a")
-      const url = URL.createObjectURL(blob)
-      link.setAttribute("href", url)
-      link.setAttribute("download", `-students-${new Date().toISOString().split("T")[0]}.doc`)
-      link.style.visibility = "hidden"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      toast({
-        title: "Word fayl yuklandi",
-        description: "Jadval Word formatida yuklab olindi",
-      })
-    } catch (error) {
-      toast({
-        title: "Xatolik",
-        description: "Faylni yuklashda xatolik yuz berdi",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const formatDataForTelegram = () => {
-    let message = "📚  O'quvchilar hisoboti\n\n"
-
-    students.forEach((student, index) => {
-      message += `${index + 1}. ${student.name}\n`
-      message += `Doska: ${student.doska ? "✅" : "❌"}\n`
-      message += `Essential: ${student.essential ? "✅" : "❌"}\n`
-      message += `Speaking: ${student.speaking ? "✅" : "❌"}\n`
-      message += `Listening: ${student.listening ? "✅" : "❌"}\n`
-      message += `Mindset: ${student.mindset ? "✅" : "❌"}\n`
-      message += `Murphy: ${student.murphy ? "✅" : "❌"}\n`
-      if (student.additionalTask) {
-        message += `Additional task: ${student.additionalTask}\n`
-      }
-      if (student.destination) {
-        message += `Destination: ${student.destination}\n`
-      }
-      message += `Done: ${student.done ? "✅" : "❌"}\n`
-      message += "\n"
-    })
-
-    return message
-  }
+  const removeGroup = (groupId: number) => {
+    setGroups((prev) => prev.filter((group) => group.id !== groupId));
+    toast({ title: "Guruh o'chirildi", description: "Guruh ro'yxatdan o'chirildi" });
+    if (selectedGroup === groupId) setSelectedGroup(null);
+  };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center"> O'quvchilar boshqaruvi</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Add new student */}
-          <div className="mb-6 flex gap-2">
+    <div className="container p-5">
+      {!selectedGroup ? (
+        <>
+          <h1 className="text-2xl font-bold mb-6">Guruhlar</h1>
+          <div className="mb-8 flex gap-2">
             <Input
-              placeholder="Yangi o'quvchi ismi"
-              value={newStudentName}
-              onChange={(e) => setNewStudentName(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && addStudent()}
+              placeholder="Yangi guruh nomi"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && addGroup()}
               className="flex-1"
             />
-            <Button onClick={addStudent} className="flex items-center gap-2">
+            <Button onClick={addGroup} className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
-              Qo'shish
+              Guruh qo'shish
             </Button>
           </div>
-
-          {students.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-lg mb-2">Hozircha o'quvchilar yo'q</p>
-              <p className="text-sm">Yuqoridagi maydondan yangi o'quvchi qo'shing</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="border border-gray-300 p-3 text-left font-semibold">Name</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Doska</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Essential</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Speaking</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Listening</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Mindset</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Murphy</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">
-                      Additional task
-                      <br />
-                      (essay, analysis)
-                    </th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Destination</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold bg-green-100">Done</th>
-                    <th className="border border-gray-300 p-3 text-center font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 p-3">
-                        <Input
-                          value={student.name}
-                          onChange={(e) => updateStudent(student.id, "name", e.target.value)}
-                          className="border-0 p-0 focus:ring-0"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <button
-                          onClick={() => toggleField(student.id, "doska")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.doska ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <button
-                          onClick={() => toggleField(student.id, "essential")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.essential ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <button
-                          onClick={() => toggleField(student.id, "speaking")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.speaking ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <button
-                          onClick={() => toggleField(student.id, "listening")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.listening ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <button
-                          onClick={() => toggleField(student.id, "mindset")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.mindset ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <button
-                          onClick={() => toggleField(student.id, "murphy")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.murphy ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3">
-                        <Textarea
-                          value={student.additionalTask}
-                          onChange={(e) => updateStudent(student.id, "additionalTask", e.target.value)}
-                          placeholder="Essay, analysis..."
-                          className="min-h-[60px] resize-none"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-3">
-                        <Input
-                          value={student.destination}
-                          onChange={(e) => updateStudent(student.id, "destination", e.target.value)}
-                          className="border-0 p-0 focus:ring-0"
-                        />
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center bg-green-50">
-                        <button
-                          onClick={() => toggleField(student.id, "done")}
-                          className="text-2xl hover:scale-110 transition-transform"
-                        >
-                          {student.done ? "✅" : "❌"}
-                        </button>
-                      </td>
-                      <td className="border border-gray-300 p-3 text-center">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeStudent(student.id)}
-                          className="flex items-center gap-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {students.length > 0 && (
-            <div className="mt-6 flex justify-center gap-4">
-              <Button
-                onClick={exportToWord}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
-              >
-                <Download className="w-5 h-5" />
-                Word ga yuklash
-              </Button>
-              <Button
-                onClick={sendToTelegram}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
-              >
-                <Send className="w-5 h-5" />
-                Telegramga yuborish
-              </Button>
-            </div>
-          )}
-
-          {/* <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="font-semibold text-blue-800 mb-2">Qanday ishlaydi:</h3>
-            <p className="text-blue-700 text-sm">
-              "Send" tugmasini bosganda Telegram ochiladi va @online_xakker bilan chat oynasi ochiladi. Xabar oldindan
-              tayyor bo'ladi, faqat "Send" tugmasini bosishingiz kerak.
-            </p>
-          </div> */}
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+            {groups.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 col-span-3">
+                <p className="text-lg mb-2">Hozircha guruhlar yo'q</p>
+                <p className="text-sm">Yuqoridagi maydondan yangi guruh qo'shing</p>
+              </div>
+            ) : (
+              groups.map((group) => (
+                <div key={group.id} className="relative">
+                  <div onClick={() => setSelectedGroup(group.id)} className="cursor-pointer">
+                    <GroupCard groupName={group.groupName} reports={[]} />
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => removeGroup(group.id)}
+                    className="absolute top-2 right-2 z-10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <Button className="mb-4" onClick={() => setSelectedGroup(null)}>Orqaga</Button>
+          <h2 className="text-xl font-bold mb-4">
+            {groups.find((g) => g.id === selectedGroup)?.groupName} o‘quvchilari boshqaruvi
+          </h2>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-center"> O'quvchilar boshqaruvi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Add new student */}
+              <div className="mb-6 flex gap-2">
+                <Input
+                  placeholder="Yangi o'quvchi ismi"
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && addStudent()}
+                  className="flex-1"
+                />
+                <Button onClick={addStudent} className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Qo'shish
+                </Button>
+              </div>
+              {(() => {
+                const group = groups.find((g) => g.id === selectedGroup);
+                if (!group || group.students.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-gray-500">
+                      <p className="text-lg mb-2">Hozircha o'quvchilar yo'q</p>
+                      <p className="text-sm">Yuqoridagi maydondan yangi o'quvchi qo'shing</p>
+                    </div>
+                  );
+                }
+                return (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-300">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            {group.fields.map((field) => (
+                              <th key={field} className={`border border-gray-300 p-3 text-center font-semibold relative group`}>
+                                <Input
+                                  value={group.labels[field] || field}
+                                  onChange={(e) => updateLabel(group.id, field, e.target.value)}
+                                  className={`border-0 p-0 text-sm font-semibold text-center`}
+                                />
+                                {field !== "name" && field !== "actions" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeColumn(group.id, field)}
+                                    className="absolute top-1 right-1 text-xs text-red-500 opacity-0 group-hover:opacity-100"
+                                    title="Ustunni o'chirish"
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </th>
+                            ))}
+                            <th className="border border-gray-300 p-3 text-center font-semibold">
+                              <Input value={group.labels.actions} onChange={(e) => updateLabel(group.id, "actions", e.target.value)} className="border-0 p-0 text-sm font-semibold text-center" />
+                            </th>
+                            {group.fields.map(() => (
+                              <th key={Math.random()}></th>
+                            ))}
+                            <th className="p-2 text-center flex items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => addColumn(group.id)}
+                                className="rounded-full bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 flex items-center justify-center shadow transition"
+                                title="Ustun qo'shish"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Plus className="w-5 h-5" />
+                              </button>
+                            </th> 
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.students.map((student, idx) => (
+                            <tr key={student.id} className="hover:bg-gray-50">
+                              {group.fields.map((field) => (
+                                <td key={field} className="border border-gray-300 p-3">
+                                  {field === "name" ? (
+                                    <Input
+                                      value={student.name}
+                                      onChange={(e) => updateStudent(student.id, "name", e.target.value)}
+                                      className="border-0 p-0 focus:ring-0"
+                                    />
+                                  ) : field === "additionalTask" ? (
+                                    <div className="space-y-2">
+                                      {Array.isArray(student.additionalTask) && student.additionalTask.map((note, noteIdx) => (
+                                        <div key={noteIdx} className="flex gap-2">
+                                          <Textarea
+                                            value={note}
+                                            onChange={(e) => updateNote(student.id, noteIdx, e.target.value)}
+                                            placeholder={`Note ${noteIdx + 1}`}
+                                            className="flex-1 min-h-[40px] resize-none break-words"
+                                          />
+                                          <Button size="sm" variant="destructive" onClick={() => removeNote(student.id, noteIdx)}>
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      ))}
+                                      <div>
+                                        <Button size="sm" onClick={() => addNote(student.id)} className="mt-1">
+                                          <Plus className="w-4 h-4" /> Qo'shish
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : typeof student[field] === "boolean" ? (
+                                    <button
+                                      onClick={() => toggleField(student.id, field as keyof Student)}
+                                      className="text-2xl hover:scale-110 transition-transform"
+                                    >
+                                      {student[field] ? "✅" : "❌"}
+                                    </button>
+                                  ) : (
+                                    <Input
+                                      value={student[field] ?? ""}
+                                      onChange={(e) => updateStudent(student.id, field as keyof Student, e.target.value)}
+                                      className="border-0 p-0 focus:ring-0"
+                                    />
+                                  )}
+                                </td>
+                              ))}
+                              <td className="border border-gray-300 p-3 text-center flex flex-col gap-2 items-center">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => removeStudent(student.id)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Telegramga yuborish tugmasi */}
+                    <div className="mt-6 flex justify-center gap-4">
+                      <Button
+                        onClick={sendToTelegram}
+                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+                      >
+                        <Send className="w-5 h-5" />
+                        Telegramga yuborish
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
-  )
+  );
 }
+
